@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+<head>
+<title>test</title>
+
+<link rel="stylesheet" type="text/css" href="materialize/css/materialize.min.css">
+<script type="text/javascript" src="jquery-1.11.3.min.js"></script>
+<link rel="stylesheet" type="text/css" href="materialize/js/materialize.min.js">
+<script type="text/javascript" src="angular.js"> </script>
+<script type="text/javascript" src="zingchart.min.js"></script> 
+<script type="text/javascript" src="zingchart-angularjs.js"></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.15/angular.min.js.map"></script> -->
+<style type="text/css">
+
+header, main, footer {
+padding-left: 240px;
+}
+
+@media only screen and (max-width : 992px) {
+header, main, footer {
+padding-left: 0;
+}
+}
+</style>
+<script>
+var app = angular.module('myApp', ['zingchart-angularjs']); 
+app.controller('MainController', function($scope, $interval, $compile, $http){
+
+$http.get("http://52.68.237.151:8123/server")
+    .success(function(response) {
+    	$scope.names = response;
+    });
+$scope.values = [0,0];
+$scope.json = {
+type : "line",
+title : {
+text : "Uses Chart"
+},
+scaleX : {
+label : {
+text : "Time"
+}
+},
+scaleY : {
+label : {
+text : "CPU Uses"
+}
+},
+legend : {},
+series:[
+{
+lineColor:"#99B2FF",
+backgroundColor:"#F44336",
+borderColor : "#F44336",
+marker:{
+borderWidth:0,
+backgroundColor:"#F44336",
+},
+rules:[
+{
+rule:"%v > 50",
+lineColor:"#CC0000",
+}
+]
+}
+]
+};
+$scope.features = {
+title : true,
+subtitle : true,
+legend : true,
+scaleX : true,
+scaleY : true
+};
+
+$scope.$watch('json', function(){
+document.getElementById('labelX').innerHTML = JSON.stringify($scope.json['scaleX']['label']['text'], null, "  ");
+document.getElementById('labelY').innerHTML = JSON.stringify($scope.json['scaleY']['label']['text'], null, "  ");
+},true);
+
+
+
+$scope.updateSeries = function(id){
+	$scope.values = null;
+	$scope.values = [];
+	$http.get("http://52.68.237.151:8123/sample?id="+id)
+    .success(function(response) {
+
+    	for(var i = response.length -1  ; i>= 0 ; i--){
+    		$scope.values.push(response[i]['counter_volume']);
+		}
+	
+    });
+
+    $http.get("http://52.68.237.151:8123/stats?id="+id+"&meter=cpu_util")
+    .success(function(response) {
+    	console.log(response[0].count);
+    	$scope.serverDetail = response[0];
+		console.log($scope.serverDetail.count);
+    });
+}
+
+$scope.updateJson = function(type){
+if($scope.features[type]){
+$scope.json[type] = {}
+}
+else{
+delete $scope.json[type];
+}
+}
+
+$interval(function(){
+if($scope.feed){
+$scope.updateSeries();
+}
+},1000)
+});
+
+</script>
+</head>
+<body ng-controller="MainController" >
+<div>
+</div>
+<ul id="slide-out" class="side-nav fixed">
+<li><h3 style="color:red">L33T</h3></li>
+<li><a href="#!" onclick="showInstancesDetails();">Instances</a></li>
+<li><a href="#!" onclick="showUserActions();">Uses Details</a></li>
+</ul>
+<a href="#" data-activates="slide-out" class="button-collapse"><i class="mdi-navigation-menu"></i></a>
+
+            
+
+ </div>
+<div>
+<main>
+
+<nav style="margin-top: -23px;">
+<div class="nav-wrapper">
+<ul id="nav-mobile" class="left hide-on-med-and-down">
+<li><a href="index.html">Home</a></li>
+
+</ul>
+</div>
+</nav>
+<div style="padding-left: 15px;">
+
+<div id="instances">
+	<div class="row">
+	<div class="col s4">
+	<ul class="collection">
+    <li class="collection-item avatar" ng-repeat="x in names">
+       <i class="mdi-device-storage circle green"></i>
+      <span class="title">{{x.name}}</span>
+      <a href="#!" class="secondary-content"><i class="mdi-toggle-radio-button-off"  onclick="toggleButton(this);" ng-model="values" ng-click="updateSeries(x.resource_id)"></i></a>
+    </li>
+  </ul>
+	</div>
+	<div class="col s8">
+<zingchart id="chart-3" zc-values="values" zc-json="json"></zingchart>
+</div>
+  </div>
+
+  <div ng-model="serverDetail" id="serverDetail">
+  		<div style="margin-left: 350px; background-color: rgb(253, 253, 253);">
+  			<label>Count: </label><span ng-bind="serverDetail.count"></span>
+  			<label style="margin-left:220px">Aug: </label><span>{{serverDetail.avg | number : 2}}</span>
+  			<label style="margin-left:200px">Sum: </label><span>{{serverDetail.sum | number : 2}}</span>
+  			<br/>
+  			<label>Min: </label><span>{{serverDetail.min | number : 2}}</span>
+  			<label style="margin-left:467px">Max: </label><span>{{serverDetail.max | number : 2}}</span>
+  			<br/>
+  			<label>Start Time: </label><span ng-bind="serverDetail.duration_start"></span>
+  			<label style="margin-left:200px">End Time: </label><span ng-bind="serverDetail.duration_end"></span>
+  		</div>
+  	
+
+  </div>
+    
+
+
+</div>
+<div id="uses-detail">
+<div class="row">
+
+<div class="col s7">
+<zingchart id="chart-1" zc-values="values" zc-json="json"></zingchart>
+</div>
+</div>
+
+
+
+
+<div class="row">
+<div class="col s12 m6">
+<div class="card blue-grey darken-1">
+<div class="card-content white-text">
+<div class="card-title">Uses</div>
+<div><span>Label X: </span><span id="labelX"></span></div>
+<div><span>Label Y: </span><span id="labelY"></span></div>
+<section style="display:none">
+                                <h2>Type</h2>
+                                <table>
+                                    <tr>
+                                        <td><input id="type-line"type="radio" ng-model="json.type" value="line" ><label for="type-line">Line</label></td>
+                                        <td><input id="type-line3d"type="radio" ng-model="json.type" value="line3d"><label for="type-line3d">Line 3D</label></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input id="type-area" type="radio" ng-model="json.type" value="area"><label for="type-area">Area</label></td>
+                                        <td><input id="type-area3d" type="radio" ng-model="json.type" value="area3d"><label for="type-area3d">Area 3D</label></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input id="type-bar" type="radio" ng-model="json.type" value="bar"><label for="type-bar">Bar</label></td>
+                                        <td><input id="type-bar3d" type="radio" ng-model="json.type" value="bar3d"><label for="type-bar3d">Bar 3D</label></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input id="type-scatter" type="radio" ng-model="json.type" value="scatter"><label for="type-scatter">Scatter</label></td>
+                                        <td><input id="type-radar" type="radio" ng-model="json.type" value="radar"><label for="type-radar">Radar</label></td>
+                                    </tr>
+                                </table>
+                            </section>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="user-action">
+<div class="row">
+
+<div class="col s7">
+<zingchart id="chart-2" zc-values="values" zc-json="json"></zingchart>
+</div>
+<div class="col s5">
+</div>
+
+</div>
+</div>
+</div>
+</main>
+</div>
+</body>
+<script type="text/javascript">
+window.onload = 
+setInterval(function(){ 
+$("#chart-3-license").css("background", "");
+}, 3000);
+window.onload = showInstancesDetails();
+
+function showInstancesDetails(){
+$("#user-action").hide();
+$("#uses-detail").hide();
+$("#serverDetail").show();
+$("#instances").show();
+/*$("#type-line").click();
+$("#type-line").click();*/
+}
+function showUserActions(){
+$("#uses-detail").hide();
+$("#instances").hide();
+$("#user-action").show();
+/*$("#type-line3d").click();
+$("#type-line3d").click();*/
+}
+
+function toggleButton(ele){
+	$(".mdi-toggle-radio-button-on").attr('class', 'mdi-toggle-radio-button-off');
+	$(ele).attr('class', 'mdi-toggle-radio-button-on');
+}
+</script>
+</html>
